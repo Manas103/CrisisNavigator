@@ -12,13 +12,11 @@
   width: 100%;
 }
 
-/* Fix z-index issues with MUI components */
 .MuiGrid-root {
   position: relative;
   z-index: 2;
 }
 
-/* Header styles */
 .header {
   background-color: #0d47a1;
   color: white;
@@ -26,7 +24,6 @@
   margin-bottom: 1rem;
 }
 
-/* Stats panel */
 .stats-panel {
   background-color: white;
   padding: 1rem;
@@ -34,7 +31,6 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Response viewer */
 .response-viewer {
   height: 70vh;
   overflow: auto;

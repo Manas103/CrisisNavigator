@@ -31,7 +31,7 @@ export const activities = pgTable("activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   type: text("type").notNull(),
   message: text("message").notNull(),
-  severity: text("severity").notNull(), // success, warning, error, info
+  severity: text("severity").notNull(),
   timestamp: timestamp("timestamp").defaultNow(),
 });
 

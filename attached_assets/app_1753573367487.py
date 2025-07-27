@@ -1,4 +1,3 @@
-# app.py
 import os
 import time
 import threading
@@ -13,24 +12,17 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-# Load environment variables
 load_dotenv()
 
-# Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
-# Configure Gemini API
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Connect to MongoDB
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client.crisis_db
 
-# ----------------------
-# Helper Functions (UPDATED)
-# ----------------------
 def get_first_image_url(event):
     """Extract first valid image URL from event sources"""
     try:
@@ -56,14 +48,12 @@ def safe_get(dictionary, keys, default=None):
 def analyze_event(event):
     """Robust event analysis with better error handling"""
     try:
-        # Safely extract event data
         title = safe_get(event, ['raw_data', 'title'], "Untitled Event")
         description = safe_get(event, ['raw_data', 'description'], "No description")
         event_type = safe_get(event, ['type'], "Unknown")
         coordinates = safe_get(event, ['location', 'coordinates'], [0, 0])
         timestamp = safe_get(event, ['timestamp'], "Unknown date")
         
-        # Combined prompt for efficiency
         combined_prompt = f"""
         DISASTER ANALYSIS REQUEST:
         **Event**: {title}
@@ -82,7 +72,6 @@ def analyze_event(event):
            c) Resource priorities
         """
         
-        # Handle image if available
         img_url = get_first_image_url(event)
         img_part = None
         if img_url:
@@ -96,7 +85,6 @@ def analyze_event(event):
             except Exception as img_e:
                 print(f"Image download error: {str(img_e)}")
         
-        # Single API call
         try:
             if img_part:
                 response = model.generate_content([combined_prompt, img_part])
@@ -108,15 +96,12 @@ def analyze_event(event):
             print(f"Gemini API error: {str(gen_e)}")
             return None
         
-        # Extract severity score - more robust method
         severity = 5
         try:
-            # Regex-based extraction
             match = re.search(r"severity\s*score:\s*(\d+)", response_text, re.IGNORECASE)
             if match and match.group(1).isdigit() and 1 <= int(match.group(1)) <= 10:
                 severity = int(match.group(1))
             else:
-                # Fallback: search for any number between 1-10
                 for word in response_text.split():
                     if word.isdigit() and 1 <= int(word) <= 10:
                         severity = int(word)
@@ -135,9 +120,6 @@ def analyze_event(event):
         traceback.print_exc()
         return None
 
-# ----------------------
-# Background Processing Thread
-# ----------------------
 def background_processor():
     """Continuously process unanalyzed events in the background"""
     while True:
@@ -145,12 +127,11 @@ def background_processor():
             print("Background processor: Checking for unprocessed events...")
             events_col = db.disaster_events
             
-            # Get unprocessed events (limit to 10 per batch)
             unprocessed = list(events_col.find({"processed": {"$ne": True}}).limit(10))
             
             if not unprocessed:
                 print("No unprocessed events found. Sleeping for 5 minutes.")
-                time.sleep(300)  # 5 minutes
+                time.sleep(300)
                 continue
                 
             print(f"Processing {len(unprocessed)} events in background...")
@@ -158,7 +139,6 @@ def background_processor():
             for event in unprocessed:
                 result = analyze_event(event)
                 if result:
-                    # Update the event document
                     events_col.update_one(
                         {"_id": event["_id"]},
                         {"$set": {
@@ -170,26 +150,22 @@ def background_processor():
                     )
                     print(f"Processed event {event['_id']}")
                 
-                # Respect Gemini rate limits (1 request per second)
                 time.sleep(1.2)
                 
             print("Batch processing complete. Sleeping for 1 minute.")
-            time.sleep(60)  # Wait 1 minute between batches
+            time.sleep(60)
             
         except Exception as e:
             print(f"Background processing error: {str(e)}")
-            time.sleep(60)  # Wait before retrying
+            time.sleep(60)
 
-# ----------------------
-# API Endpoints
-# ----------------------
 @app.route('/api/disasters', methods=['GET'])
 def get_disasters():
     """Get processed disasters for the map"""
     disasters = list(db.disaster_events.find(
         {"processed": True},
         {"_id": 0, "raw_data": 1, "location": 1, "severity": 1, "type": 1, "analysis": 1}
-    ).sort("last_processed", -1).limit(100))  # Get most recent 100
+    ).sort("last_processed", -1).limit(100))
     return jsonify(disasters)
 
 @app.route('/api/stats', methods=['GET'])
@@ -203,9 +179,6 @@ def get_stats():
     }
     return jsonify(stats)
 
-# ----------------------
-# Frontend Serving
-# ----------------------
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react(path):
@@ -215,23 +188,17 @@ def serve_react(path):
         return send_from_directory('crisis-dashboard/build', 'index.html')
 
 
-# Add to app.py after other routes
 @app.route('/api/test-event', methods=['GET'])
 def test_event():
     """Test event structure"""
     sample = db.disaster_events.find_one()
     if sample:
-        # Remove MongoDB _id field
         sample.pop('_id', None)
         return jsonify(sample)
     return jsonify({"error": "No events found"})
 
 
-# ----------------------
-# Application Startup
-# ----------------------
 if __name__ == '__main__':
-    # Start background processing thread
     processor_thread = threading.Thread(target=background_processor, daemon=True)
     processor_thread.start()
     

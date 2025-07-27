@@ -81,7 +81,6 @@ Focus on practical, actionable advice for emergency response teams.
 
       const analysis: DisasterAnalysis = JSON.parse(analysisText);
       
-      // Validate severity is within range
       if (analysis.severity < 1 || analysis.severity > 10) {
         analysis.severity = Math.max(1, Math.min(10, analysis.severity));
       }
@@ -101,7 +100,6 @@ Focus on practical, actionable advice for emergency response teams.
       const unprocessed = await storage.getUnprocessedDisasters();
       console.log(`Processing ${unprocessed.length} unanalyzed disasters`);
 
-      // Process in parallel batches of 5 to respect rate limits but improve speed
       const batchSize = 5;
       const batches = [];
       
@@ -110,7 +108,6 @@ Focus on practical, actionable advice for emergency response teams.
       }
 
       for (const batch of batches) {
-        // Process batch in parallel
         const promises = batch.map(async (disaster) => {
           try {
             const analysis = await this.analyzeDisaster(disaster);
@@ -141,14 +138,12 @@ Focus on practical, actionable advice for emergency response teams.
           }
         });
 
-        // Wait for batch to complete
         const results = await Promise.all(promises);
         const successCount = results.filter(r => r.success).length;
         const highSeverityCount = results.filter(r => r.success && r.severity && r.severity >= 7).length;
         
         console.log(`Batch completed: ${successCount}/${batch.length} analyzed, ${highSeverityCount} high severity`);
         
-        // Brief pause between batches to respect rate limits
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (error) {
@@ -159,12 +154,10 @@ Focus on practical, actionable advice for emergency response teams.
   }
 
   async startPeriodicProcessing(intervalMs: number = 30000): Promise<void> {
-    // Process immediately on startup
     setTimeout(async () => {
       await this.processUnanalyzedDisasters();
-    }, 5000); // Wait 5 seconds for server to stabilize
+    }, 5000);
     
-    // Then process every 30 seconds
     setInterval(async () => {
       await this.processUnanalyzedDisasters();
     }, intervalMs);

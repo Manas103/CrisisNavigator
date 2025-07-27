@@ -3,7 +3,6 @@ import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { type Disaster } from "@shared/schema";
 
-// Fix for default markers in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -15,7 +14,7 @@ interface DisasterMapProps {
   disasters: Disaster[];
   onSelectDisaster: (disaster: Disaster) => void;
   selectedDisaster?: Disaster | null;
-  centerMap?: boolean; // New prop to trigger centering
+  centerMap?: boolean;
 }
 
 export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, centerMap }: DisasterMapProps) {
@@ -26,10 +25,10 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, cen
   const [shouldPreserveView, setShouldPreserveView] = useState(false);
 
   const getSeverityColor = (severity: number | null): string => {
-    if (!severity) return "#6B7280"; // gray for unknown
-    if (severity >= 7) return "#DC2626"; // red for high
-    if (severity >= 4) return "#F59E0B"; // yellow for medium
-    return "#16A34A"; // green for low
+    if (!severity) return "#6B7280";
+    if (severity >= 7) return "#DC2626";
+    if (severity >= 4) return "#F59E0B";
+    return "#16A34A";
   };
 
   const createCustomIcon = (severity: number | null) => {
@@ -53,24 +52,20 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, cen
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    // Initialize map
     mapRef.current = L.map(mapContainerRef.current, {
       center: [20, 0],
       zoom: 2,
       zoomControl: true,
     });
 
-    // Add tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(mapRef.current);
 
-    // Track user interactions to preserve view
     mapRef.current.on('zoomstart dragstart', () => {
       setShouldPreserveView(true);
     });
 
-    // Add pulse animation CSS
     const style = document.createElement('style');
     style.textContent = `
       @keyframes pulse {
@@ -94,13 +89,11 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, cen
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear existing markers
     markersRef.current.forEach(marker => {
       mapRef.current?.removeLayer(marker);
     });
     markersRef.current = [];
 
-    // Add new markers
     disasters.forEach(disaster => {
       if (!mapRef.current) return;
 
@@ -123,14 +116,12 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, cen
 
       marker.bindPopup(popupContent);
       marker.on('click', () => {
-        // Don't center map when clicking on disaster
         onSelectDisaster(disaster);
       });
       marker.addTo(mapRef.current);
       markersRef.current.push(marker);
     });
 
-    // Only fit bounds on initial load or when explicitly requested
     if (disasters.length > 0 && (!isInitialized || (centerMap && !shouldPreserveView))) {
       const bounds = L.latLngBounds(
         disasters.map(d => [d.latitude, d.longitude])
@@ -139,14 +130,13 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, cen
     }
   }, [disasters, onSelectDisaster, centerMap, isInitialized, shouldPreserveView]);
 
-  // Handle center map trigger
   useEffect(() => {
     if (centerMap && mapRef.current && disasters.length > 0) {
       const bounds = L.latLngBounds(
         disasters.map(d => [d.latitude, d.longitude])
       );
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-      setShouldPreserveView(false); // Reset preservation after centering
+      setShouldPreserveView(false);
     }
   }, [centerMap, disasters]);
 

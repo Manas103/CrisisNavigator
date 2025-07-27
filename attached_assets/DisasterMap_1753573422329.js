@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix marker icons - IMPORTANT for Windows
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -15,11 +14,9 @@ L.Icon.Default.mergeOptions({
 const DisasterMap = ({ disasters, onSelect }) => {
   const [map, setMap] = useState(null);
   
-  // Set initial view to Florida where most disasters are
   const initialPosition = [29.118233, -81.4737];
   const initialZoom = 6;
 
-  // Update view when disasters change
   useEffect(() => {
     if (map && disasters.length > 0) {
       const coords = disasters.map(d => [
@@ -27,7 +24,6 @@ const DisasterMap = ({ disasters, onSelect }) => {
         d.location.coordinates[0]
       ]);
       
-      // Create bounds that contain all markers
       const bounds = L.latLngBounds(coords);
       map.fitBounds(bounds, { padding: [50, 50] });
     }

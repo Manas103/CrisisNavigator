@@ -22,11 +22,10 @@ export default function Dashboard() {
   const { isConnected, lastMessage } = useWebSocket();
   const { toast } = useToast();
 
-  // Queries
   const { data: disasters = [], isLoading: disastersLoading } = useQuery<Disaster[]>({
     queryKey: ["/api/disasters"],
-    refetchInterval: 15000, // Refresh every 15 seconds to see processed disasters faster
-    staleTime: 5000, // Consider data stale after 5 seconds
+    refetchInterval: 15000,
+    staleTime: 5000,
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<SystemStats>({
@@ -39,7 +38,6 @@ export default function Dashboard() {
     refetchInterval: 30000,
   });
 
-  // Handle WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
 
@@ -49,7 +47,6 @@ export default function Dashboard() {
         break;
       case 'disasters':
         queryClient.setQueryData(["/api/disasters"], lastMessage.data);
-        // Force a refresh to ensure we get the latest processed disasters
         queryClient.invalidateQueries({ queryKey: ["/api/disasters"] });
         break;
       case 'activities':
@@ -66,7 +63,6 @@ export default function Dashboard() {
     ]);
   };
 
-  // Bulk process all unprocessed disasters
   const { mutate: processAll, isPending: isProcessingAll } = useMutation({
     mutationFn: async () => {
       const response = await fetch('/api/process-all', { 
@@ -81,7 +77,6 @@ export default function Dashboard() {
         title: "Bulk Processing Complete",
         description: `Successfully analyzed ${data.count} disasters`,
       });
-      // Refresh all data
       handleRefreshData();
     },
     onError: (error) => {
@@ -96,17 +91,13 @@ export default function Dashboard() {
   const handleCenterMap = () => {
     setTriggerCenter(true);
     setSelectedDisaster(null);
-    // Reset trigger after a brief delay
     setTimeout(() => setTriggerCenter(false), 100);
   };
 
-  // Filter disasters based on current filters
   const filteredDisasters = disasters.filter(disaster => {
-    // Filter by processing status
     if (filterType === 'processed' && !disaster.processed) return false;
     if (filterType === 'unprocessed' && disaster.processed) return false;
 
-    // Filter by severity
     if (severityFilter !== 'all' && disaster.processed) {
       if (severityFilter === 'high' && (!disaster.severity || disaster.severity < 7)) return false;
       if (severityFilter === 'medium' && (!disaster.severity || disaster.severity < 4 || disaster.severity >= 7)) return false;
@@ -175,7 +166,6 @@ export default function Dashboard() {
               stats={stats!}
               selectedDisaster={selectedDisaster}
               onViewDetails={() => {
-                // Could open a detailed modal or navigate to details page
                 console.log("View details for disaster:", selectedDisaster?.id);
               }}
               isConnected={isConnected}

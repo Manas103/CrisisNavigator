@@ -45,14 +45,12 @@ export function ResponseViewer({ selectedDisaster }: ResponseViewerProps) {
     return "default";
   };
 
-  // Parse analysis if it's structured JSON
   let structuredAnalysis: any = null;
   try {
     if (selectedDisaster.analysis && selectedDisaster.analysis.startsWith('{')) {
       structuredAnalysis = JSON.parse(selectedDisaster.analysis);
     }
   } catch (e) {
-    // Not JSON, treat as plain text
   }
 
   return (
@@ -82,7 +80,6 @@ export function ResponseViewer({ selectedDisaster }: ResponseViewerProps) {
           {selectedDisaster.processed && selectedDisaster.analysis ? (
             <>
               {structuredAnalysis ? (
-                // Structured Analysis Display
                 <div className="space-y-4">
                   {/* Risk Assessment */}
                   {structuredAnalysis.risks && (
@@ -173,7 +170,6 @@ export function ResponseViewer({ selectedDisaster }: ResponseViewerProps) {
                   )}
                 </div>
               ) : (
-                // Plain Text Analysis Display
                 <div className="bg-gray-50 p-4 rounded">
                   <h4 className="font-semibold text-gray-700 mb-2">Analysis Results</h4>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
@@ -183,7 +179,6 @@ export function ResponseViewer({ selectedDisaster }: ResponseViewerProps) {
               )}
             </>
           ) : (
-            // Processing State
             <div className="text-center text-gray-500 py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-sm">AI analysis in progress...</p>

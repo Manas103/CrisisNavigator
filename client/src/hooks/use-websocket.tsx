@@ -42,7 +42,6 @@ export function useWebSocket() {
         console.log("WebSocket disconnected");
         setIsConnected(false);
         
-        // Attempt to reconnect after 3 seconds
         if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();

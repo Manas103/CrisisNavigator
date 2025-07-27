@@ -11,26 +11,23 @@ except ImportError as e:
 
 load_dotenv()
 
-# Fetch EONET data with error handling
 try:
     response = requests.get("https://eonet.gsfc.nasa.gov/api/v3/events", timeout=10)
-    response.raise_for_status()  # Raise error for bad status codes
+    response.raise_for_status()
     eonet_data = response.json()["events"]
 except requests.exceptions.RequestException as e:
     print(f"Failed to fetch EONET data: {str(e)}")
     exit(1)
 
-# MongoDB Connection
 try:
     client = MongoClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=5000)
-    client.server_info()  # Test connection
+    client.server_info()
     db = client.crisis_db
     events = db.disaster_events
 except Exception as e:
     print(f"MongoDB connection failed: {str(e)}")
     exit(1)
 
-# Verify EONET data structure
 if not eonet_data:
     print("No events found in EONET data")
     exit(1)
@@ -45,7 +42,6 @@ except KeyError as e:
     print(f"Unexpected EONET data structure: Missing key {str(e)}")
     exit(1)
 
-# Prepare documents for insertion
 documents = []
 for event in eonet_data:
     try:
@@ -66,13 +62,11 @@ for event in eonet_data:
     except (KeyError, IndexError) as e:
         print(f"Skipping malformed event: {str(e)}")
 
-# Insert documents with error handling
 if documents:
     try:
         result = events.insert_many(documents)
         print(f"Successfully inserted {len(result.inserted_ids)} documents")
         
-        # Create geospatial index
         events.create_index([("location", "2dsphere")])
         print("Created geospatial index")
     except Exception as e:

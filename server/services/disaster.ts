@@ -42,7 +42,6 @@ export class DisasterService {
         const geometry = event.geometry[0];
         if (!geometry.coordinates || geometry.coordinates.length !== 2) continue;
 
-        // Check if this disaster already exists to avoid duplicates
         const existingDisasters = await storage.getDisasters();
         const exists = existingDisasters.some(d => 
           d.title === event.title && 
@@ -89,10 +88,8 @@ export class DisasterService {
   }
 
   async startPeriodicIngestion(intervalMs: number = 600000): Promise<void> {
-    // Initial ingestion
     await this.ingestNASAData();
 
-    // Set up periodic ingestion every 10 minutes (less frequent to focus on processing)
     setInterval(async () => {
       await this.ingestNASAData();
     }, intervalMs);

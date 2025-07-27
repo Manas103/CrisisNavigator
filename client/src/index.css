@@ -68,7 +68,6 @@
   }
 }
 
-/* Leaflet map styling fixes */
 .leaflet-container {
   height: 100%;
   width: 100%;
@@ -85,7 +84,6 @@
   line-height: 1.4;
 }
 
-/* Custom marker animations */
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -106,12 +104,10 @@
   border: none !important;
 }
 
-/* Ensure proper z-index for UI components over map */
 .leaflet-control-container {
   z-index: 1000;
 }
 
-/* Custom scrollbar for better UX */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
@@ -130,7 +126,6 @@
   background: hsl(240, 5%, 54.9%);
 }
 
-/* Loading animation improvements */
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -144,7 +139,6 @@
   animation: spin 1s linear infinite;
 }
 
-/* Responsive improvements */
 @media (max-width: 768px) {
   .container {
     padding-left: 1rem;
@@ -156,7 +150,6 @@
   }
 }
 
-/* High contrast mode for accessibility */
 @media (prefers-contrast: high) {
   :root {
     --border: hsl(240, 5.9%, 70%);
@@ -164,7 +157,6 @@
   }
 }
 
-/* Reduced motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   .animate-spin,
   .animate-pulse {

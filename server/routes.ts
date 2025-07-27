@@ -108,19 +108,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up periodic broadcasts
   setInterval(async () => {
     try {
-      const [stats, activities, disasters] = await Promise.all([
+      const [stats, activities] = await Promise.all([
         storage.getStats(),
-        storage.getActivities(5),
-        storage.getDisasters()
+        storage.getActivities(5)
       ]);
 
       broadcastUpdate('stats', stats);
       broadcastUpdate('activities', activities);
-      broadcastUpdate('disasters', disasters.slice(0, 100)); // Limit to 100 for performance
+      
+      // Only broadcast disasters if there are processed ones to avoid overwhelming the client
+      const processedDisasters = (await storage.getDisasters()).filter(d => d.processed);
+      if (processedDisasters.length > 0) {
+        broadcastUpdate('disasters', processedDisasters.slice(0, 100));
+      }
     } catch (error) {
       console.error('Error broadcasting updates:', error);
     }
-  }, 30000); // Every 30 seconds
+  }, 15000); // Every 15 seconds for more responsive updates
 
   return httpServer;
 }

@@ -78,11 +78,11 @@ export class DisasterService {
     }
   }
 
-  async startPeriodicIngestion(intervalMs: number = 300000): Promise<void> {
+  async startPeriodicIngestion(intervalMs: number = 600000): Promise<void> {
     // Initial ingestion
     await this.ingestNASAData();
 
-    // Set up periodic ingestion
+    // Set up periodic ingestion every 10 minutes (less frequent to focus on processing)
     setInterval(async () => {
       await this.ingestNASAData();
     }, intervalMs);

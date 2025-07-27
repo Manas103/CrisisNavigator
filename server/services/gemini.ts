@@ -101,29 +101,55 @@ Focus on practical, actionable advice for emergency response teams.
       const unprocessed = await storage.getUnprocessedDisasters();
       console.log(`Processing ${unprocessed.length} unanalyzed disasters`);
 
-      for (const disaster of unprocessed.slice(0, 10)) { // Process 10 at a time
-        const analysis = await this.analyzeDisaster(disaster);
+      // Process in parallel batches of 5 to respect rate limits but improve speed
+      const batchSize = 5;
+      const batches = [];
+      
+      for (let i = 0; i < Math.min(unprocessed.length, 50); i += batchSize) {
+        batches.push(unprocessed.slice(i, i + batchSize));
+      }
+
+      for (const batch of batches) {
+        // Process batch in parallel
+        const promises = batch.map(async (disaster) => {
+          try {
+            const analysis = await this.analyzeDisaster(disaster);
+            
+            if (analysis) {
+              await storage.updateDisaster(disaster.id, {
+                severity: analysis.severity,
+                analysis: analysis.fullAnalysis,
+                processed: true,
+              });
+
+              const severityText = analysis.severity >= 7 ? "High" : analysis.severity >= 4 ? "Medium" : "Low";
+              await storage.createActivity({
+                type: "ai_analysis",
+                message: `${severityText} severity ${disaster.type.toLowerCase()} analyzed - ${disaster.title}`,
+                severity: analysis.severity >= 7 ? "error" : analysis.severity >= 4 ? "warning" : "success",
+              });
+              
+              return { success: true, severity: analysis.severity };
+            } else {
+              await storage.updateDisaster(disaster.id, { processed: true });
+              return { success: false };
+            }
+          } catch (error) {
+            console.error(`Error analyzing disaster ${disaster.id}:`, error);
+            await storage.updateDisaster(disaster.id, { processed: true });
+            return { success: false };
+          }
+        });
+
+        // Wait for batch to complete
+        const results = await Promise.all(promises);
+        const successCount = results.filter(r => r.success).length;
+        const highSeverityCount = results.filter(r => r.success && r.severity && r.severity >= 7).length;
         
-        if (analysis) {
-          await storage.updateDisaster(disaster.id, {
-            severity: analysis.severity,
-            analysis: analysis.fullAnalysis,
-            processed: true,
-          });
-
-          const severityText = analysis.severity >= 7 ? "High" : analysis.severity >= 4 ? "Medium" : "Low";
-          await storage.createActivity({
-            type: "ai_analysis",
-            message: `${severityText} severity ${disaster.type.toLowerCase()} analyzed - ${disaster.title}`,
-            severity: analysis.severity >= 7 ? "error" : analysis.severity >= 4 ? "warning" : "success",
-          });
-        } else {
-          // Mark as processed even if analysis failed to avoid retry loops
-          await storage.updateDisaster(disaster.id, { processed: true });
-        }
-
-        // Rate limiting - wait 1 second between requests
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`Batch completed: ${successCount}/${batch.length} analyzed, ${highSeverityCount} high severity`);
+        
+        // Brief pause between batches to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (error) {
       console.error("Error processing disasters:", error);
@@ -132,7 +158,13 @@ Focus on practical, actionable advice for emergency response teams.
     }
   }
 
-  async startPeriodicProcessing(intervalMs: number = 60000): Promise<void> {
+  async startPeriodicProcessing(intervalMs: number = 30000): Promise<void> {
+    // Process immediately on startup
+    setTimeout(async () => {
+      await this.processUnanalyzedDisasters();
+    }, 5000); // Wait 5 seconds for server to stabilize
+    
+    // Then process every 30 seconds
     setInterval(async () => {
       await this.processUnanalyzedDisasters();
     }, intervalMs);

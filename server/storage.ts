@@ -36,9 +36,19 @@ export class MemStorage implements IStorage {
   }
 
   async getDisasters(): Promise<Disaster[]> {
-    return Array.from(this.disasters.values()).sort(
-      (a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    // Prioritize processed disasters with high severity for better user experience
+    return Array.from(this.disasters.values()).sort((a, b) => {
+      // First sort by processed status (processed first)
+      if (a.processed !== b.processed) {
+        return (b.processed ? 1 : 0) - (a.processed ? 1 : 0);
+      }
+      // Then by severity (high first)
+      if (a.severity !== b.severity) {
+        return (b.severity || 0) - (a.severity || 0);
+      }
+      // Finally by creation time (newest first)
+      return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
+    });
   }
 
   async getDisaster(id: string): Promise<Disaster | undefined> {

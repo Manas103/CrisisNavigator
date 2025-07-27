@@ -69,6 +69,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk process all unprocessed disasters
+  app.post("/api/process-all", async (req, res) => {
+    try {
+      const unprocessedDisasters = await storage.getUnprocessedDisasters();
+      const count = unprocessedDisasters.length;
+      
+      if (count === 0) {
+        return res.json({ message: "No unprocessed disasters found", count: 0 });
+      }
+
+      // Process disasters in larger batches for bulk operation
+      const BATCH_SIZE = 10;
+      let processed = 0;
+      
+      for (let i = 0; i < unprocessedDisasters.length; i += BATCH_SIZE) {
+        const batch = unprocessedDisasters.slice(i, i + BATCH_SIZE);
+        
+        // Process batch in parallel
+        const promises = batch.map(async (disaster) => {
+          try {
+            const analysis = await geminiService.analyzeDisaster(disaster);
+            if (analysis) {
+              await storage.updateDisaster(disaster.id, {
+                processed: true,
+                severity: analysis.severity,
+                analysis: analysis.fullAnalysis,
+              });
+              processed++;
+
+              // Create activity for high severity disasters
+              if (analysis.severity >= 7) {
+                await storage.createActivity({
+                  type: 'ai_analysis',
+                  message: `High severity ${disaster.type.toLowerCase()} analyzed - ${disaster.title}`,
+                  severity: 'error',
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error processing disaster ${disaster.id}:`, error);
+          }
+        });
+
+        await Promise.all(promises);
+        
+        // Brief pause between batches to avoid overwhelming the API
+        if (i + BATCH_SIZE < unprocessedDisasters.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      await storage.createActivity({
+        type: 'system',
+        message: `Bulk processing completed: ${processed}/${count} disasters analyzed`,
+        severity: 'info',
+      });
+
+      res.json({ 
+        message: `Successfully processed ${processed} disasters`, 
+        count: processed,
+        total: count 
+      });
+    } catch (error) {
+      console.error("Error in bulk processing:", error);
+      res.status(500).json({ error: "Failed to process disasters" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   // WebSocket server for real-time updates

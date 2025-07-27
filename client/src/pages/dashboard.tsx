@@ -1,23 +1,25 @@
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { DisasterMap } from "@/components/disaster-map";
 import { StatsPanel } from "@/components/stats-panel";
 import { ResponseViewer } from "@/components/response-viewer";
 import { ActivityFeed } from "@/components/activity-feed";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { type Disaster, type SystemStats, type Activity } from "@shared/schema";
-import { Satellite, RefreshCw, Crosshair } from "lucide-react";
+import { Satellite, RefreshCw, Crosshair, Zap } from "lucide-react";
 
 type FilterType = 'all' | 'processed' | 'unprocessed';
 type SeverityFilter = 'all' | 'high' | 'medium' | 'low';
 
 export default function Dashboard() {
   const [selectedDisaster, setSelectedDisaster] = useState<Disaster | null>(null);
-  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [filterType, setFilterType] = useState<FilterType>('processed'); // Default to processed only
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
   const queryClient = useQueryClient();
   const { isConnected, lastMessage } = useWebSocket();
+  const { toast } = useToast();
 
   // Queries
   const { data: disasters = [], isLoading: disastersLoading } = useQuery<Disaster[]>({
@@ -62,6 +64,33 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] }),
     ]);
   };
+
+  // Bulk process all unprocessed disasters
+  const { mutate: processAll, isPending: isProcessingAll } = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/process-all', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Failed to process disasters');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Bulk Processing Complete",
+        description: `Successfully analyzed ${data.count} disasters`,
+      });
+      // Refresh all data
+      handleRefreshData();
+    },
+    onError: (error) => {
+      toast({
+        title: "Processing Failed", 
+        description: error instanceof Error ? error.message : "Failed to process disasters",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleCenterMap = () => {
     // This would be handled by the map component
@@ -273,7 +302,7 @@ export default function Dashboard() {
 
                 {/* Action Buttons and Stats */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 flex-wrap">
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -290,6 +319,15 @@ export default function Dashboard() {
                     >
                       <Crosshair className="h-4 w-4" />
                       <span>Center View</span>
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => processAll()}
+                      disabled={isProcessingAll}
+                      className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      <Zap className="h-4 w-4" />
+                      <span>{isProcessingAll ? 'Processing...' : 'Analyze All'}</span>
                     </Button>
                     <button
                       onClick={() => {

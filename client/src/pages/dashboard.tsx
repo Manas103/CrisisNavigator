@@ -9,8 +9,13 @@ import { Button } from "@/components/ui/button";
 import { type Disaster, type SystemStats, type Activity } from "@shared/schema";
 import { Satellite, RefreshCw, Crosshair } from "lucide-react";
 
+type FilterType = 'all' | 'processed' | 'unprocessed';
+type SeverityFilter = 'all' | 'high' | 'medium' | 'low';
+
 export default function Dashboard() {
   const [selectedDisaster, setSelectedDisaster] = useState<Disaster | null>(null);
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
   const queryClient = useQueryClient();
   const { isConnected, lastMessage } = useWebSocket();
 
@@ -62,6 +67,22 @@ export default function Dashboard() {
     // This would be handled by the map component
     setSelectedDisaster(null);
   };
+
+  // Filter disasters based on current filters
+  const filteredDisasters = disasters.filter(disaster => {
+    // Filter by processing status
+    if (filterType === 'processed' && !disaster.processed) return false;
+    if (filterType === 'unprocessed' && disaster.processed) return false;
+
+    // Filter by severity
+    if (severityFilter !== 'all' && disaster.processed) {
+      if (severityFilter === 'high' && (!disaster.severity || disaster.severity < 7)) return false;
+      if (severityFilter === 'medium' && (!disaster.severity || disaster.severity < 4 || disaster.severity >= 7)) return false;
+      if (severityFilter === 'low' && (!disaster.severity || disaster.severity >= 4)) return false;
+    }
+
+    return true;
+  });
 
   const formatTimeAgo = (date: Date): string => {
     const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
@@ -157,16 +178,102 @@ export default function Dashboard() {
               
               <div className="h-96 lg:h-[600px]">
                 <DisasterMap 
-                  disasters={disasters}
+                  disasters={filteredDisasters}
                   onSelectDisaster={setSelectedDisaster}
                   selectedDisaster={selectedDisaster}
                 />
               </div>
               
               {/* Map Controls Footer */}
-              <div className="p-4 bg-gray-50 border-t">
+              <div className="p-4 bg-gray-50 border-t space-y-3">
+                {/* Filter Controls */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-700">Show:</span>
+                    <div className="flex border rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setFilterType('all')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors ${
+                          filterType === 'all' 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        All Events
+                      </button>
+                      <button
+                        onClick={() => setFilterType('processed')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors border-l ${
+                          filterType === 'processed' 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        Analyzed Only
+                      </button>
+                      <button
+                        onClick={() => setFilterType('unprocessed')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors border-l ${
+                          filterType === 'unprocessed' 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        Pending Only
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-700">Severity:</span>
+                    <div className="flex border rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setSeverityFilter('all')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors ${
+                          severityFilter === 'all' 
+                            ? 'bg-gray-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        All
+                      </button>
+                      <button
+                        onClick={() => setSeverityFilter('high')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors border-l ${
+                          severityFilter === 'high' 
+                            ? 'bg-red-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        High (7-10)
+                      </button>
+                      <button
+                        onClick={() => setSeverityFilter('medium')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors border-l ${
+                          severityFilter === 'medium' 
+                            ? 'bg-yellow-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        Med (4-6)
+                      </button>
+                      <button
+                        onClick={() => setSeverityFilter('low')}
+                        className={`px-3 py-1 text-xs font-medium transition-colors border-l ${
+                          severityFilter === 'low' 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        Low (1-3)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons and Stats */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -184,11 +291,19 @@ export default function Dashboard() {
                       <Crosshair className="h-4 w-4" />
                       <span>Center View</span>
                     </Button>
+                    <button
+                      onClick={() => {
+                        setFilterType('all');
+                        setSeverityFilter('all');
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      Clear Filters
+                    </button>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <div><span className="font-semibold">{disasters.length}</span> total events</div>
-                    <div><span className="font-semibold text-green-600">{disasters.filter(d => d.processed).length}</span> analyzed</div>
-                    <div><span className="font-semibold text-red-600">{disasters.filter(d => d.processed && d.severity && d.severity >= 7).length}</span> high severity</div>
+                    <div><span className="font-semibold">{filteredDisasters.length}</span> of {disasters.length} displayed</div>
+                    <div><span className="font-semibold text-green-600">{disasters.filter(d => d.processed).length}</span> analyzed • <span className="font-semibold text-red-600">{disasters.filter(d => d.processed && d.severity && d.severity >= 7).length}</span> high severity</div>
                   </div>
                 </div>
               </div>

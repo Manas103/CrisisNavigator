@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [selectedDisaster, setSelectedDisaster] = useState<Disaster | null>(null);
   const [filterType, setFilterType] = useState<FilterType>('processed'); // Default to processed only
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
+  const [triggerCenter, setTriggerCenter] = useState(false);
   const queryClient = useQueryClient();
   const { isConnected, lastMessage } = useWebSocket();
   const { toast } = useToast();
@@ -93,8 +94,10 @@ export default function Dashboard() {
   });
 
   const handleCenterMap = () => {
-    // This would be handled by the map component
+    setTriggerCenter(true);
     setSelectedDisaster(null);
+    // Reset trigger after a brief delay
+    setTimeout(() => setTriggerCenter(false), 100);
   };
 
   // Filter disasters based on current filters
@@ -210,6 +213,7 @@ export default function Dashboard() {
                   disasters={filteredDisasters}
                   onSelectDisaster={setSelectedDisaster}
                   selectedDisaster={selectedDisaster}
+                  centerMap={triggerCenter}
                 />
               </div>
               

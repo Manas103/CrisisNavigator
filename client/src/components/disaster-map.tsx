@@ -15,12 +15,15 @@ interface DisasterMapProps {
   disasters: Disaster[];
   onSelectDisaster: (disaster: Disaster) => void;
   selectedDisaster?: Disaster | null;
+  centerMap?: boolean; // New prop to trigger centering
 }
 
-export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster }: DisasterMapProps) {
+export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster, centerMap }: DisasterMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [shouldPreserveView, setShouldPreserveView] = useState(false);
 
   const getSeverityColor = (severity: number | null): string => {
     if (!severity) return "#6B7280"; // gray for unknown
@@ -62,6 +65,11 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster }: D
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(mapRef.current);
 
+    // Track user interactions to preserve view
+    mapRef.current.on('zoomstart dragstart', () => {
+      setShouldPreserveView(true);
+    });
+
     // Add pulse animation CSS
     const style = document.createElement('style');
     style.textContent = `
@@ -72,6 +80,8 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster }: D
       }
     `;
     document.head.appendChild(style);
+
+    setIsInitialized(true);
 
     return () => {
       if (mapRef.current) {
@@ -112,19 +122,33 @@ export function DisasterMap({ disasters, onSelectDisaster, selectedDisaster }: D
       `;
 
       marker.bindPopup(popupContent);
-      marker.on('click', () => onSelectDisaster(disaster));
+      marker.on('click', () => {
+        // Don't center map when clicking on disaster
+        onSelectDisaster(disaster);
+      });
       marker.addTo(mapRef.current);
       markersRef.current.push(marker);
     });
 
-    // Fit bounds if there are disasters
-    if (disasters.length > 0) {
+    // Only fit bounds on initial load or when explicitly requested
+    if (disasters.length > 0 && (!isInitialized || (centerMap && !shouldPreserveView))) {
       const bounds = L.latLngBounds(
         disasters.map(d => [d.latitude, d.longitude])
       );
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [disasters, onSelectDisaster]);
+  }, [disasters, onSelectDisaster, centerMap, isInitialized, shouldPreserveView]);
+
+  // Handle center map trigger
+  useEffect(() => {
+    if (centerMap && mapRef.current && disasters.length > 0) {
+      const bounds = L.latLngBounds(
+        disasters.map(d => [d.latitude, d.longitude])
+      );
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+      setShouldPreserveView(false); // Reset preservation after centering
+    }
+  }, [centerMap, disasters]);
 
   return (
     <div className="relative h-full">

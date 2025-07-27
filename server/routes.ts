@@ -72,7 +72,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   if (process.env.ENABLE_RELIEFWEB === "1") {
-    // initial non‑blocking kickoff (optional but recommended)
     (async () => {
       try {
         const n = await ingestReliefWeb();
@@ -89,12 +88,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (e) {
         console.error("ReliefWeb refresh error:", e);
       }
-    }, 15 * 60 * 1000); // every 15 min
+    }, 15 * 60 * 1000);
   }
 
-  // >>> ADD THIS BLOCK <<<
   if (process.env.ENABLE_GDACS === "1") {
-    // initial non‑blocking kickoff
     (async () => {
       try {
         const days = parseInt(process.env.GDACS_DAYS || "30", 10);

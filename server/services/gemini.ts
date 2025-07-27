@@ -26,7 +26,7 @@ interface Evidence {
 
 interface DisasterAnalysis {
   severity: number;
-  criteriaMet?: number;    // number of HIGH triggers matched
+  criteriaMet?: number;
   evidence?: Evidence;
   risks: string[];
   immediateActions: string[];
@@ -39,7 +39,6 @@ interface DisasterAnalysis {
   fullAnalysis: string;
 }
 
-/* ---------------- helpers ---------------- */
 
 function countHighTriggers(e?: Evidence): number {
   if (!e) return 0;
@@ -85,13 +84,11 @@ function parseNarrative(full: string | undefined): { label?: Band; num?: number 
   if (!full) return {};
   const text = full.toLowerCase();
 
-  // label detection
   let label: Band | undefined;
   if (/\bhigh severity\b|\bclassified as high\b|\boverall severity:\s*high\b/i.test(full)) label = "high";
   else if (/\bmedium severity\b|\bclassified as medium\b|\boverall severity:\s*medium\b/i.test(full)) label = "medium";
   else if (/\blow severity\b|\bclassified as low\b|\boverall severity:\s*low\b/i.test(full)) label = "low";
 
-  // numeric detection: 7/10, 7 out of 10, severity 7/10
   const m =
     /(?:severity|score|rated)?\s*:?\s*(\d{1,2})\s*(?:\/\s*10|out of\s*10)/i.exec(full) ||
     /(?:severity|score|rated)[^\d]{0,10}(\d{1,2})/i.exec(full);
@@ -100,7 +97,6 @@ function parseNarrative(full: string | undefined): { label?: Band; num?: number 
   return { label, num };
 }
 
-/* ---------------- service ---------------- */
 
 export class GeminiService {
   private isProcessing = false;
@@ -239,14 +235,12 @@ Time: ${new Date(disaster.timestamp).toISOString()}
 
       const analysis: DisasterAnalysis = JSON.parse(analysisText);
 
-      // Clamp numeric to [1,10] if present
       if (typeof analysis.severity !== "number" || Number.isNaN(analysis.severity)) {
         analysis.severity = 3; // conservative default
       } else {
         analysis.severity = Math.max(1, Math.min(10, Math.round(analysis.severity)));
       }
 
-      // Compute desired band from evidence
       const highCount = countHighTriggers(analysis.evidence);
       const moderate = hasModerateEvidence(analysis.evidence);
       let computedBand: Band;
@@ -254,19 +248,14 @@ Time: ${new Date(disaster.timestamp).toISOString()}
       else if (highCount === 1 || moderate) computedBand = "medium";
       else computedBand = "low";
 
-      // Parse narrative for stated label / score
       const { label: narrativeLabel, num: narrativeNum } = parseNarrative(analysis.fullAnalysis);
 
-      // Choose final band: prefer narrative label if present, else computed
       const finalBand: Band = narrativeLabel ?? computedBand;
 
-      // Choose base number: prefer narrative number if present; else current number
       let finalNum = typeof narrativeNum === "number" ? narrativeNum : analysis.severity;
 
-      // Clamp number to the final band
       finalNum = clampToBand(finalNum, finalBand);
 
-      // Record back
       analysis.criteriaMet = highCount;
       analysis.severity = finalNum;
 

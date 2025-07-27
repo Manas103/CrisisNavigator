@@ -5,7 +5,6 @@ const RW_BASE = "https://api.reliefweb.int/v2";
 const APP = process.env.RELIEFWEB_APPNAME || "crisis-navigator-demo/0.1";
 const RW_DAYS = parseInt(process.env.RELIEFWEB_DAYS || "30", 10);
 
-// --- helpers ---------------------------------------------------------------
 
 // 2025-07-27T00:00:00+00:00
 function cutoffISO() {
@@ -22,12 +21,11 @@ async function existsSimilar(title: string, country: string, when: Date) {
   const key = (s: string) => s.trim().toLowerCase();
   return all.some(d =>
     key(d.title || "") === key(title) &&
-    key((d as any).country || "") === key(country) && // not stored—so we key via title suffix below
+    key((d as any).country || "") === key(country) &&
     Math.abs(new Date(d.timestamp).getTime() - t) < day
   );
 }
 
-// small, deterministic jitter so markers don't stack (±0.25°)
 function hashInt(s: string) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
@@ -42,7 +40,6 @@ function jitter(lat: number, lon: number, key: string) {
   return { lat: lat + dLat, lon: lon + dLon };
 }
 
-// country centroids (extend as needed)
 const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   Sudan: [30.2176, 12.8628],
   Haiti: [-72.336, 18.971],
@@ -78,7 +75,6 @@ function coordsForCountry(name: string): { lat: number; lon: number } | null {
   return { lat, lon };
 }
 
-// --- main ------------------------------------------------------------------
 
 export async function ingestReliefWeb(): Promise<number> {
   const url = `${RW_BASE}/reports?appname=${encodeURIComponent(APP)}`;
@@ -136,34 +132,28 @@ export async function ingestReliefWeb(): Promise<number> {
     const dateCreated: string = f.date?.created || f.date?.original || new Date().toISOString();
     const when = new Date(dateCreated);
 
-    // country list (limit to avoid explosion)
     const countries = extractCountryNames(item).slice(0, 5);
     if (!countries.length) {
-      // No location -> skip to avoid (0,0) ocean stacks
       continue;
     }
 
-    // Disaster types
     const types = (f.disaster || []).map((d: any) => d?.name).filter(Boolean);
     const type = types[0] || "Crisis";
 
-    // Create one record per country, with jitter
     for (const country of countries) {
       const base = coordsForCountry(country);
       if (!base) {
-        // skip unknown countries rather than dropping at (0,0)
         continue;
       }
       const key = `${title}|${country}`;
       const { lat, lon } = jitter(base.lat, base.lon, key);
 
-      const titled = `${title} — ${country}`; // keeps items distinct
-      // dedupe by title+country within ±1 day
+      const titled = `${title} — ${country}`;
       if (await existsSimilar(titled, country, when)) continue;
 
       const rec: InsertDisaster = {
         type,
-        severity: 3, // Gemini will rescore
+        severity: 3,
         latitude: lat,
         longitude: lon,
         title: titled,

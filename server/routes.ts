@@ -4,6 +4,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { disasterService } from "./services/disaster";
 import { geminiService } from "./services/gemini";
+import { ingestReliefWeb } from "./services/reliefweb";
+import { ingestGDACS } from "./services/gdacs";
 
 const MAX_AGE_DAYS = parseInt(process.env.DISASTER_MAX_AGE_DAYS || "30", 10);
 const cutoffDate = () =>
@@ -68,6 +70,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to start analysis" });
     }
   });
+
+  if (process.env.ENABLE_RELIEFWEB === "1") {
+    // initial non‑blocking kickoff (optional but recommended)
+    (async () => {
+      try {
+        const n = await ingestReliefWeb();
+        if (n > 0) console.log(`ReliefWeb ingested ${n} items`);
+      } catch (e) {
+        console.error("ReliefWeb initial error:", e);
+      }
+    })();
+
+    setInterval(async () => {
+      try {
+        const n = await ingestReliefWeb();
+        if (n > 0) console.log(`ReliefWeb added ${n} new items`);
+      } catch (e) {
+        console.error("ReliefWeb refresh error:", e);
+      }
+    }, 15 * 60 * 1000); // every 15 min
+  }
+
+  // >>> ADD THIS BLOCK <<<
+  if (process.env.ENABLE_GDACS === "1") {
+    // initial non‑blocking kickoff
+    (async () => {
+      try {
+        const days = parseInt(process.env.GDACS_DAYS || "30", 10);
+        const n = await ingestGDACS(days);
+        if (n > 0) console.log(`GDACS ingested ${n} items`);
+      } catch (e) {
+        console.error("GDACS error:", e);
+      }
+    })();
+
+    setInterval(async () => {
+      try {
+        const days = parseInt(process.env.GDACS_DAYS || "30", 10);
+        const n = await ingestGDACS(days);
+        if (n > 0) console.log(`GDACS added ${n} new items`);
+      } catch (e) {
+        console.error("GDACS refresh error:", e);
+      }
+    }, 15 * 60 * 1000);
+  }
 
   app.post("/api/process-all", async (req, res) => {
     try {

@@ -42,6 +42,16 @@ export class DisasterService {
         const geometry = event.geometry[0];
         if (!geometry.coordinates || geometry.coordinates.length !== 2) continue;
 
+        // Check if this disaster already exists to avoid duplicates
+        const existingDisasters = await storage.getDisasters();
+        const exists = existingDisasters.some(d => 
+          d.title === event.title && 
+          Math.abs(d.latitude - geometry.coordinates[1]) < 0.001 &&
+          Math.abs(d.longitude - geometry.coordinates[0]) < 0.001
+        );
+        
+        if (exists) continue;
+
         const disaster: InsertDisaster = {
           type: event.categories[0]?.title || "Unknown",
           latitude: geometry.coordinates[1],

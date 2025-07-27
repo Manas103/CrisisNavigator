@@ -116,11 +116,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastUpdate('stats', stats);
       broadcastUpdate('activities', activities);
       
-      // Only broadcast disasters if there are processed ones to avoid overwhelming the client
-      const processedDisasters = (await storage.getDisasters()).filter(d => d.processed);
-      if (processedDisasters.length > 0) {
-        broadcastUpdate('disasters', processedDisasters.slice(0, 100));
-      }
+      // Always broadcast the latest disasters with processed ones prioritized
+      const allDisasters = await storage.getDisasters();
+      broadcastUpdate('disasters', allDisasters.slice(0, 100));
     } catch (error) {
       console.error('Error broadcasting updates:', error);
     }

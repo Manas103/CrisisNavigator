@@ -17,7 +17,8 @@ export default function Dashboard() {
   // Queries
   const { data: disasters = [], isLoading: disastersLoading } = useQuery<Disaster[]>({
     queryKey: ["/api/disasters"],
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 15000, // Refresh every 15 seconds to see processed disasters faster
+    staleTime: 5000, // Consider data stale after 5 seconds
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery<SystemStats>({
@@ -40,6 +41,8 @@ export default function Dashboard() {
         break;
       case 'disasters':
         queryClient.setQueryData(["/api/disasters"], lastMessage.data);
+        // Force a refresh to ensure we get the latest processed disasters
+        queryClient.invalidateQueries({ queryKey: ["/api/disasters"] });
         break;
       case 'activities':
         queryClient.setQueryData(["/api/activities"], lastMessage.data);
@@ -182,8 +185,10 @@ export default function Dashboard() {
                       <span>Center View</span>
                     </Button>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    <span className="font-semibold">{disasters.length}</span> active events displayed
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div><span className="font-semibold">{disasters.length}</span> total events</div>
+                    <div><span className="font-semibold text-green-600">{disasters.filter(d => d.processed).length}</span> analyzed</div>
+                    <div><span className="font-semibold text-red-600">{disasters.filter(d => d.processed && d.severity && d.severity >= 7).length}</span> high severity</div>
                   </div>
                 </div>
               </div>
